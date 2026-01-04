@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
-import { Client } from "@upstash/qstash";
-
-const qstash = new Client({ token: process.env.QSTASH_TOKEN! });
+import { runIngestionPipeline } from "@/lib/neynar/ingest";
 
 // POST /api/auth/miniapp - Register user from Mini App context
 export async function POST(req: NextRequest) {
@@ -30,15 +28,11 @@ export async function POST(req: NextRequest) {
         username,
         displayName,
         pfpUrl,
-        ingestStatus: "pending",
+        ingestStatus: "in_progress",
       });
 
-      // Queue ingestion job for new user
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      await qstash.publishJSON({
-        url: `${appUrl}/api/jobs/ingest`,
-        body: { fid },
-      });
+      // Run ingestion directly (no QStash needed for small accounts)
+      await runIngestionPipeline(fid);
 
       return NextResponse.json({
         success: true,
@@ -57,6 +51,16 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date(),
       })
       .where(eq(users.fid, fid));
+
+    // If ingestion never completed, run it now
+    if (existingUser.ingestStatus !== "complete") {
+      await db
+        .update(users)
+        .set({ ingestStatus: "in_progress" })
+        .where(eq(users.fid, fid));
+
+      await runIngestionPipeline(fid);
+    }
 
     return NextResponse.json({
       success: true,
@@ -77,3 +81,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// Allow longer execution for ingestion
+export const maxDuration = 300;
