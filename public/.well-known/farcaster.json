@@ -1,0 +1,18 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjEyMzQ1LCJ0eXBlIjoiY3VzdG9keSIsImtleSI6IjB4MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCJ9",
+    "payload": "eyJkb21haW4iOiJjb21tdW5pdHktcHVsc2UudmVyY2VsLmFwcCJ9",
+    "signature": "placeholder_signature_to_be_updated"
+  },
+  "miniApp": {
+    "name": "Community Pulse",
+    "shortName": "Pulse",
+    "iconUrl": "https://community-pulse.vercel.app/icon.svg",
+    "splashImageUrl": "https://community-pulse.vercel.app/splash.svg",
+    "splashBackgroundColor": "#7C3AED",
+    "homeUrl": "https://community-pulse.vercel.app",
+    "description": "Track your community-building metrics on Farcaster",
+    "longDescription": "Community Pulse analyzes your Farcaster activity to show community health metrics like new repliers, retention, conversation depth, and tone patterns.",
+    "version": "1.0.0"
+  }
+}
