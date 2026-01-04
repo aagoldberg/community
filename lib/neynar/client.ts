@@ -97,7 +97,7 @@ class NeynarClient {
       includeReplies?: boolean;
     } = {}
   ): Promise<{ casts: NormalizedCast[]; nextCursor: string | null }> {
-    const { limit = 150, cursor, includeReplies = true } = options;
+    const { limit = 50, cursor, includeReplies = true } = options;
 
     const params: Record<string, string> = {
       fid: fid.toString(),
@@ -136,7 +136,7 @@ class NeynarClient {
     hash: string,
     options: { limit?: number } = {}
   ): Promise<NormalizedReply[]> {
-    const { limit = 100 } = options;
+    const { limit = 50 } = options;
 
     try {
       const response = await this.fetch<FetchRepliesResponse>(
