@@ -63,6 +63,26 @@ export async function GET(req: NextRequest) {
     .orderBy(sql`${casts.timestamp} DESC`)
     .limit(3);
 
+  // Classification breakdown
+  const classificationStats = await db
+    .select({
+      positiveCount: sql<number>`count(*) filter (where ${classifications.sentiment} = 'positive')`,
+      negativeCount: sql<number>`count(*) filter (where ${classifications.sentiment} = 'negative')`,
+      neutralCount: sql<number>`count(*) filter (where ${classifications.sentiment} = 'neutral')`,
+      angerCount: sql<number>`count(*) filter (where ${classifications.hasAnger} = true)`,
+      agencyCount: sql<number>`count(*) filter (where ${classifications.hasAgency} = true)`,
+    })
+    .from(classifications)
+    .innerJoin(casts, eq(casts.hash, classifications.castHash))
+    .where(eq(casts.fid, fid));
+
+  // Casts in last 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentCastCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(casts)
+    .where(sql`${casts.fid} = ${fid} AND ${casts.timestamp} >= ${thirtyDaysAgo}`);
+
   return NextResponse.json({
     user: user
       ? {
@@ -86,5 +106,17 @@ export async function GET(req: NextRequest) {
       timestamp: c.timestamp.toISOString(),
       replyCount: c.replyCount,
     })),
+    classificationBreakdown: {
+      positive: Number(classificationStats[0]?.positiveCount ?? 0),
+      negative: Number(classificationStats[0]?.negativeCount ?? 0),
+      neutral: Number(classificationStats[0]?.neutralCount ?? 0),
+      hasAnger: Number(classificationStats[0]?.angerCount ?? 0),
+      hasAgency: Number(classificationStats[0]?.agencyCount ?? 0),
+    },
+    castsInLast30Days: Number(recentCastCount[0]?.count ?? 0),
+    rangeInfo: {
+      now: new Date().toISOString(),
+      thirtyDaysAgo: thirtyDaysAgo.toISOString(),
+    },
   });
 }
