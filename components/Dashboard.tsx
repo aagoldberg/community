@@ -175,6 +175,40 @@ export function Dashboard({ fid }: DashboardProps) {
           </div>
         </div>
 
+        {/* Data Context Summary */}
+        <div className="bg-white dark:bg-gray-900 rounded-lg px-4 py-3 shadow-sm">
+          {data.dataContext ? (
+            <>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="font-medium text-gray-900 dark:text-white">
+                  Analyzing:
+                </span>{" "}
+                {data.dataContext.totalPosts} posts
+                {data.dataContext.rootPosts !== data.dataContext.totalPosts && (
+                  <span className="text-gray-400 dark:text-gray-500">
+                    {" "}({data.dataContext.rootPosts} original, {data.dataContext.totalPosts - data.dataContext.rootPosts} replies)
+                  </span>
+                )}
+                {" · "}
+                {data.dataContext.repliesReceived} replies received
+                {" · "}
+                {data.dataContext.uniqueEngagers} engager{data.dataContext.uniqueEngagers !== 1 ? "s" : ""}
+              </p>
+              {data.dataContext.positivePosts > 0 || data.dataContext.negativePosts > 0 ? (
+                <p className="text-xs text-gray-500 mt-1">
+                  Sentiment: {data.dataContext.positivePosts} positive, {data.dataContext.negativePosts} negative, {data.dataContext.totalPosts - data.dataContext.positivePosts - data.dataContext.negativePosts} neutral
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">
+                  All posts classified as neutral tone
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">Loading data context...</p>
+          )}
+        </div>
+
         {/* Community Outcomes */}
         <section>
           <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
