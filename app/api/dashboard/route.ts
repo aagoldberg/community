@@ -70,9 +70,10 @@ export async function GET(req: NextRequest) {
       range,
     });
   } catch (error) {
-    console.error("Dashboard computation error:", error);
+    console.error("Dashboard computation error for FID", fid, ":", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Failed to compute dashboard" },
+      { error: "Failed to compute dashboard", details: errorMessage },
       { status: 500 }
     );
   }
