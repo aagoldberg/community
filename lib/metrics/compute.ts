@@ -1,5 +1,5 @@
 import { db, casts, replies, classifications, engagers } from "@/lib/db";
-import { eq, and, gte, lt, sql, isNull, desc } from "drizzle-orm";
+import { eq, and, gte, lt, sql, isNull, desc, inArray } from "drizzle-orm";
 import { DashboardData, ExamplePost } from "@/lib/cache";
 
 type Range = "7d" | "30d";
@@ -129,7 +129,7 @@ async function computeRetention(
       and(
         eq(replies.targetFid, fid),
         gte(replies.timestamp, rangeStart),
-        sql`${replies.authorFid} = ANY(${prevFids})`
+        inArray(replies.authorFid, prevFids)
       )
     );
 
@@ -258,7 +258,7 @@ async function computeAgencyStats(
         and(
           eq(replies.targetFid, fid),
           eq(replies.hasActionSignal, true),
-          sql`${replies.parentHash} = ANY(${agencyHashes})`
+          inArray(replies.parentHash, agencyHashes)
         )
       );
 
