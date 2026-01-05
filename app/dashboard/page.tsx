@@ -309,7 +309,7 @@ export default function DashboardPage() {
         {/* Footer */}
         <div className="text-center text-xs text-gray-400 pb-4">
           {data.cached && <span>Cached • </span>}
-          <span>Community Pulse</span>
+          <span>Community Pulse v2</span>
         </div>
       </div>
     </div>
