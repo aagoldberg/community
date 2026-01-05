@@ -149,7 +149,17 @@ class NeynarClient {
         }
       );
 
+      // Debug: log raw response structure
+      if (!response.conversation?.cast) {
+        console.log(`[neynar] No conversation.cast for ${hash}:`, JSON.stringify(response).slice(0, 200));
+        return [];
+      }
+
       const directReplies = response.conversation.cast.direct_replies || [];
+
+      if (directReplies.length > 0) {
+        console.log(`[neynar] Found ${directReplies.length} replies for ${hash}`);
+      }
 
       return directReplies.map(
         (reply): NormalizedReply => ({
@@ -162,7 +172,7 @@ class NeynarClient {
       );
     } catch (error) {
       // If conversation not found, return empty
-      console.error(`Error fetching replies for ${hash}:`, error);
+      console.error(`[neynar] Error fetching replies for ${hash}:`, error);
       return [];
     }
   }
