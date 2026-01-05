@@ -3,6 +3,7 @@ import { db, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { getNeynarClient } from "@/lib/neynar/client";
 import { runIngestionPipeline } from "@/lib/neynar/ingest";
+import { invalidateDashboardCache } from "@/lib/cache";
 
 // POST /api/lookup?fid=123 or /api/lookup?username=vitalik.eth&limit=100&force=true
 // Looks up a user by FID or username, ensures they exist in DB, triggers ingestion if needed
@@ -101,6 +102,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (needsIngestion) {
+    // Clear cache if force refresh
+    if (force) {
+      await invalidateDashboardCache(fid);
+    }
+
     // Run ingestion (this may take a while)
     console.log(`[lookup] Running ingestion for FID ${fid}, force=${force}, limit=${limit}`);
     try {
