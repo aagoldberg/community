@@ -97,7 +97,7 @@ function ExamplePostCard({
           )}
         </span>
         <a
-          href={`https://warpcast.com/~/conversations/${post.hash}`}
+          href={`https://farcaster.xyz/~/conversations/${post.hash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400"

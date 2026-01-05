@@ -48,7 +48,7 @@ export default function Home() {
 
           <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-6">
             <p className="text-sm text-purple-800 dark:text-purple-200">
-              This is a Farcaster Mini App. Open it in Warpcast to use it.
+              This is a Farcaster Mini App. Open it in the Farcaster app to use it.
             </p>
           </div>
 
@@ -57,7 +57,7 @@ export default function Home() {
               How to open:
             </h3>
             <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 list-decimal list-inside">
-              <li>Open Warpcast on your phone</li>
+              <li>Open Farcaster on your phone</li>
               <li>Search for &quot;Community Pulse&quot; in Mini Apps</li>
               <li>Or share this link in a cast and tap it</li>
             </ol>

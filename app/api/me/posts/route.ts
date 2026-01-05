@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
           angerConfidence: Number(post.angerConfidence),
           hasAgency: post.hasAgency,
         },
-        warpcastUrl: `https://warpcast.com/~/conversations/${post.hash}`,
+        farcasterUrl: `https://warpcast.com/~/conversations/${post.hash}`,
       })),
       nextCursor,
       hasMore,
