@@ -16,6 +16,7 @@ export default function Home() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [postLimit, setPostLimit] = useState<number>(100);
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -40,15 +41,17 @@ export default function Home() {
     try {
       const input = lookupInput.trim();
 
+      const forceParam = forceRefresh ? "&force=true" : "";
+
       // Check if it's a number (FID)
       if (/^\d+$/.test(input)) {
         const fid = parseInt(input, 10);
         // Trigger ingestion for this FID
-        await fetch(`/api/lookup?fid=${fid}&limit=${postLimit}`, { method: "POST" });
+        await fetch(`/api/lookup?fid=${fid}&limit=${postLimit}${forceParam}`, { method: "POST" });
         setLookupFid(fid);
       } else {
         // It's a username - look up the FID
-        const res = await fetch(`/api/lookup?username=${encodeURIComponent(input)}&limit=${postLimit}`, { method: "POST" });
+        const res = await fetch(`/api/lookup?username=${encodeURIComponent(input)}&limit=${postLimit}${forceParam}`, { method: "POST" });
         const data = await res.json();
 
         if (!res.ok) {
@@ -132,6 +135,15 @@ export default function Home() {
                 {lookupLoading ? "Loading..." : "View Analytics"}
               </button>
             </div>
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <input
+                type="checkbox"
+                checked={forceRefresh}
+                onChange={(e) => setForceRefresh(e.target.checked)}
+                className="rounded border-gray-300 dark:border-gray-700"
+              />
+              Force re-fetch data (use if data looks stale)
+            </label>
           </form>
 
           {lookupError && (

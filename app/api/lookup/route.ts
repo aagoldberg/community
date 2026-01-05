@@ -4,13 +4,15 @@ import { eq } from "drizzle-orm";
 import { getNeynarClient } from "@/lib/neynar/client";
 import { runIngestionPipeline } from "@/lib/neynar/ingest";
 
-// POST /api/lookup?fid=123 or /api/lookup?username=vitalik.eth&limit=100
+// POST /api/lookup?fid=123 or /api/lookup?username=vitalik.eth&limit=100&force=true
 // Looks up a user by FID or username, ensures they exist in DB, triggers ingestion if needed
 export async function POST(req: NextRequest) {
   const fidParam = req.nextUrl.searchParams.get("fid");
   const usernameParam = req.nextUrl.searchParams.get("username");
   const limitParam = req.nextUrl.searchParams.get("limit");
+  const forceParam = req.nextUrl.searchParams.get("force");
   const limit = limitParam ? parseInt(limitParam, 10) : 100;
+  const force = forceParam === "true";
 
   let fid: number | null = null;
   let username: string | null = null;
@@ -80,8 +82,15 @@ export async function POST(req: NextRequest) {
     where: eq(users.fid, fid),
   });
 
+  const needsIngestion =
+    !existingUser ||
+    existingUser.ingestStatus !== "complete" ||
+    !existingUser.totalCasts ||
+    existingUser.totalCasts === 0 ||
+    force;
+
   if (!existingUser) {
-    // Create user and run ingestion
+    // Create user
     await db.insert(users).values({
       fid,
       username,
@@ -89,24 +98,16 @@ export async function POST(req: NextRequest) {
       pfpUrl,
       ingestStatus: "in_progress",
     });
+  }
 
+  if (needsIngestion) {
     // Run ingestion (this may take a while)
+    console.log(`[lookup] Running ingestion for FID ${fid}, force=${force}, limit=${limit}`);
     try {
       await runIngestionPipeline(fid, { maxCasts: limit });
     } catch (error) {
       console.error("Ingestion error:", error);
       // Continue - user can refresh later
-    }
-  } else if (
-    existingUser.ingestStatus !== "complete" ||
-    !existingUser.totalCasts ||
-    existingUser.totalCasts === 0
-  ) {
-    // User exists but needs ingestion
-    try {
-      await runIngestionPipeline(fid, { maxCasts: limit });
-    } catch (error) {
-      console.error("Ingestion error:", error);
     }
   }
 

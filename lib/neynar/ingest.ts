@@ -72,19 +72,28 @@ export async function runIngestionPipeline(
 
     // 3. Fetch replies to root casts
     const rootCasts = userCasts.filter((c) => !c.parentHash);
+    console.log("[ingest] Root casts to fetch replies for:", rootCasts.length);
     const allReplies: NormalizedReply[] = [];
+    let fetchErrors = 0;
 
     // Batch fetch replies (with rate limiting)
     for (const batch of chunk(rootCasts, 10)) {
-      const batchReplies = await Promise.all(
-        batch.map((cast) =>
-          client.fetchCastReplies(cast.hash, { limit: MAX_REPLIES_PER_ROOT })
-        )
+      const batchResults = await Promise.all(
+        batch.map(async (cast) => {
+          try {
+            return await client.fetchCastReplies(cast.hash, { limit: MAX_REPLIES_PER_ROOT });
+          } catch (err) {
+            fetchErrors++;
+            console.error(`[ingest] Error fetching replies for ${cast.hash}:`, err);
+            return [];
+          }
+        })
       );
 
-      allReplies.push(...batchReplies.flat());
+      allReplies.push(...batchResults.flat());
       await sleep(RATE_LIMIT_DELAY);
     }
+    console.log("[ingest] Total replies fetched:", allReplies.length, "errors:", fetchErrors);
 
     // 4. Store replies and update engager tracking
     let repliesIngested = 0;
