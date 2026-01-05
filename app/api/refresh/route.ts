@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { invalidateDashboardCache } from "@/lib/cache";
-import { runIncrementalUpdate } from "@/lib/neynar/ingest";
+import { runIngestionPipeline } from "@/lib/neynar/ingest";
 
 // POST /api/refresh?fid=123 - Trigger data refresh
 export async function POST(req: NextRequest) {
@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
     // Invalidate cache
     await invalidateDashboardCache(fid);
 
-    // Run incremental update directly
-    const result = await runIncrementalUpdate(fid);
+    // Run full ingestion pipeline
+    const result = await runIngestionPipeline(fid);
 
     return NextResponse.json({
       status: "complete",
