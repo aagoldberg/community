@@ -50,6 +50,7 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
         const context = await sdk.context;
 
         if (context?.user) {
+          console.log("[MiniApp] User from SDK:", context.user.fid, context.user.username);
           setUser({
             fid: context.user.fid,
             username: context.user.username,
