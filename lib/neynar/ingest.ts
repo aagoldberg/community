@@ -20,6 +20,7 @@ export interface IngestResult {
 }
 
 export async function runIngestionPipeline(fid: number): Promise<IngestResult> {
+  console.log("[ingest] Starting pipeline for FID:", fid);
   const client = getNeynarClient();
 
   // Mark as in-progress
@@ -30,7 +31,9 @@ export async function runIngestionPipeline(fid: number): Promise<IngestResult> {
 
   try {
     // 1. Fetch user's casts
+    console.log("[ingest] Fetching casts for FID:", fid);
     const userCasts = await fetchAllUserCasts(fid, MAX_CASTS);
+    console.log("[ingest] Fetched casts:", userCasts.length);
 
     // 2. Store casts
     let castsIngested = 0;

@@ -9,7 +9,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { fid, username, displayName, pfpUrl } = body;
 
+    console.log("[auth/miniapp] Received:", { fid, username, displayName });
+
     if (!fid || typeof fid !== "number") {
+      console.log("[auth/miniapp] Invalid FID:", fid);
       return NextResponse.json(
         { error: "Missing or invalid fid" },
         { status: 400 }
@@ -21,8 +24,15 @@ export async function POST(req: NextRequest) {
       where: eq(users.fid, fid),
     });
 
+    console.log("[auth/miniapp] Existing user:", existingUser ? {
+      fid: existingUser.fid,
+      status: existingUser.ingestStatus,
+      totalCasts: existingUser.totalCasts
+    } : null);
+
     if (!existingUser) {
       // Create new user
+      console.log("[auth/miniapp] Creating new user:", fid);
       await db.insert(users).values({
         fid,
         username,
@@ -32,7 +42,9 @@ export async function POST(req: NextRequest) {
       });
 
       // Run ingestion directly (no QStash needed for small accounts)
-      await runIngestionPipeline(fid);
+      console.log("[auth/miniapp] Running ingestion for new user:", fid);
+      const result = await runIngestionPipeline(fid);
+      console.log("[auth/miniapp] Ingestion result:", result);
 
       return NextResponse.json({
         success: true,
@@ -58,13 +70,17 @@ export async function POST(req: NextRequest) {
       !existingUser.totalCasts ||
       existingUser.totalCasts === 0;
 
+    console.log("[auth/miniapp] Needs ingestion:", needsIngestion);
+
     if (needsIngestion) {
+      console.log("[auth/miniapp] Running ingestion for existing user:", fid);
       await db
         .update(users)
         .set({ ingestStatus: "in_progress" })
         .where(eq(users.fid, fid));
 
-      await runIngestionPipeline(fid);
+      const result = await runIngestionPipeline(fid);
+      console.log("[auth/miniapp] Ingestion result:", result);
     }
 
     return NextResponse.json({
