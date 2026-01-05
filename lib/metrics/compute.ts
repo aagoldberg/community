@@ -37,6 +37,7 @@ export async function computeDashboard(
     emotionStats,
     hopeStats,
     topExamples,
+    dataContext,
   ] = await Promise.all([
     computeActivation(fid, rangeStart, prevRangeStart, prevRangeEnd),
     computeRetention(fid, rangeStart, prevRangeStart, prevRangeEnd),
@@ -46,6 +47,7 @@ export async function computeDashboard(
     computeEmotionStats(fid, rangeStart),
     computeHopeStats(fid, rangeStart),
     computeTopExamples(fid, rangeStart),
+    computeDataContext(fid, rangeStart),
   ]);
 
   return {
@@ -58,6 +60,7 @@ export async function computeDashboard(
     positiveRate: emotionStats.positive,
     hopeIndex: hopeStats,
     topExamples,
+    dataContext,
   };
 }
 
@@ -393,5 +396,60 @@ async function computeTopExamples(
       timestamp: p.timestamp.toISOString(),
       score: p.replyCount ?? 0,
     })),
+  };
+}
+
+// DATA CONTEXT: Counts to help user understand their metrics
+async function computeDataContext(
+  fid: number,
+  rangeStart: Date
+): Promise<{
+  totalPosts: number;
+  rootPosts: number;
+  repliesReceived: number;
+  uniqueEngagers: number;
+  positivePosts: number;
+  negativePosts: number;
+}> {
+  const [postStats, replyStats, engagerStats, sentimentStats] = await Promise.all([
+    // Post counts
+    db
+      .select({
+        total: sql<number>`count(*)`,
+        root: sql<number>`count(*) filter (where ${casts.parentHash} is null)`,
+      })
+      .from(casts)
+      .where(and(eq(casts.fid, fid), gte(casts.timestamp, rangeStart))),
+
+    // Replies received
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(replies)
+      .where(and(eq(replies.targetFid, fid), gte(replies.timestamp, rangeStart))),
+
+    // Unique engagers
+    db
+      .selectDistinct({ authorFid: replies.authorFid })
+      .from(replies)
+      .where(and(eq(replies.targetFid, fid), gte(replies.timestamp, rangeStart))),
+
+    // Sentiment breakdown
+    db
+      .select({
+        positive: sql<number>`count(*) filter (where ${classifications.sentiment} = 'positive')`,
+        negative: sql<number>`count(*) filter (where ${classifications.sentiment} = 'negative')`,
+      })
+      .from(casts)
+      .innerJoin(classifications, eq(casts.hash, classifications.castHash))
+      .where(and(eq(casts.fid, fid), gte(casts.timestamp, rangeStart))),
+  ]);
+
+  return {
+    totalPosts: Number(postStats[0]?.total ?? 0),
+    rootPosts: Number(postStats[0]?.root ?? 0),
+    repliesReceived: Number(replyStats[0]?.count ?? 0),
+    uniqueEngagers: engagerStats.length,
+    positivePosts: Number(sentimentStats[0]?.positive ?? 0),
+    negativePosts: Number(sentimentStats[0]?.negative ?? 0),
   };
 }

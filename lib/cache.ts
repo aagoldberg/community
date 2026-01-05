@@ -18,10 +18,19 @@ export interface DashboardData {
   agencyRate: { value: number; postsWithActionReplies: number };
   rageDensity: { value: number; count: number };
   positiveRate: { value: number };
-  hopeIndex: { value: number; highPct: number }; // New: hope metric from emotion analysis
+  hopeIndex: { value: number; highPct: number };
   topExamples: {
     rage: ExamplePost[];
     agency: ExamplePost[];
+  };
+  // Context: what data these metrics are based on
+  dataContext: {
+    totalPosts: number; // All posts in range
+    rootPosts: number; // Original posts (not replies)
+    repliesReceived: number; // Replies from others to your posts
+    uniqueEngagers: number; // Unique people who replied
+    positivePosts: number; // Posts classified as positive
+    negativePosts: number; // Posts classified as negative
   };
 }
 
