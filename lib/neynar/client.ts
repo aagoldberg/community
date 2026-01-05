@@ -198,6 +198,38 @@ class NeynarClient {
       return null;
     }
   }
+
+  async fetchUserByUsername(username: string): Promise<{
+    fid: number;
+    username: string;
+    displayName: string;
+    pfpUrl: string;
+  } | null> {
+    try {
+      const response = await this.fetch<{
+        user: {
+          fid: number;
+          username: string;
+          display_name: string;
+          pfp_url: string;
+        };
+      }>("/farcaster/user/by_username", {
+        username: username.replace(/^@/, ""), // Remove @ if present
+      });
+
+      const user = response.user;
+      if (!user) return null;
+
+      return {
+        fid: user.fid,
+        username: user.username,
+        displayName: user.display_name,
+        pfpUrl: user.pfp_url,
+      };
+    } catch {
+      return null;
+    }
+  }
 }
 
 // Singleton instance

@@ -10,6 +10,12 @@ export default function Home() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
+  // Lookup state for non-mini-app mode
+  const [lookupInput, setLookupInput] = useState("");
+  const [lookupFid, setLookupFid] = useState<number | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
   useEffect(() => {
     const init = async () => {
       if (isLoaded && user) {
@@ -25,6 +31,38 @@ export default function Home() {
     init();
   }, [isLoaded, user, ensureUser]);
 
+  const handleLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLookupError(null);
+    setLookupLoading(true);
+
+    try {
+      const input = lookupInput.trim();
+
+      // Check if it's a number (FID)
+      if (/^\d+$/.test(input)) {
+        const fid = parseInt(input, 10);
+        // Trigger ingestion for this FID
+        await fetch(`/api/lookup?fid=${fid}`, { method: "POST" });
+        setLookupFid(fid);
+      } else {
+        // It's a username - look up the FID
+        const res = await fetch(`/api/lookup?username=${encodeURIComponent(input)}`, { method: "POST" });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "User not found");
+        }
+
+        setLookupFid(data.fid);
+      }
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : "Lookup failed");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
   // Still loading SDK
   if (!isLoaded) {
     return (
@@ -34,8 +72,28 @@ export default function Home() {
     );
   }
 
-  // Not in a Mini App context - show instructions
+  // Not in a Mini App context - show lookup form
   if (!isInMiniApp) {
+    // If we have a looked-up FID, show their dashboard
+    if (lookupFid) {
+      return (
+        <div>
+          <div className="bg-purple-100 dark:bg-purple-900/30 px-4 py-2 text-center">
+            <span className="text-sm text-purple-800 dark:text-purple-200">
+              Viewing FID: {lookupFid}
+            </span>
+            <button
+              onClick={() => setLookupFid(null)}
+              className="ml-3 text-sm text-purple-600 dark:text-purple-400 underline"
+            >
+              Look up another
+            </button>
+          </div>
+          <Dashboard fid={lookupFid} />
+        </div>
+      );
+    }
+
     return (
       <main className="min-h-screen flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full space-y-6 text-center">
@@ -43,24 +101,34 @@ export default function Home() {
             Community Pulse
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Track your community-building metrics on Farcaster
+            Track community-building metrics on Farcaster
           </p>
 
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-6">
-            <p className="text-sm text-purple-800 dark:text-purple-200">
-              This is a Farcaster Mini App. Open it in the Farcaster app to use it.
-            </p>
-          </div>
+          <form onSubmit={handleLookup} className="space-y-3">
+            <input
+              type="text"
+              value={lookupInput}
+              onChange={(e) => setLookupInput(e.target.value)}
+              placeholder="Enter FID or username (e.g. 218775 or vitalik.eth)"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <button
+              type="submit"
+              disabled={lookupLoading || !lookupInput.trim()}
+              className="w-full px-4 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {lookupLoading ? "Loading..." : "View Analytics"}
+            </button>
+          </form>
 
-          <div className="space-y-3 text-left bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm">
-            <h3 className="font-medium text-gray-900 dark:text-white">
-              How to open:
-            </h3>
-            <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 list-decimal list-inside">
-              <li>Open Farcaster on your phone</li>
-              <li>Search for &quot;Community Pulse&quot; in Mini Apps</li>
-              <li>Or share this link in a cast and tap it</li>
-            </ol>
+          {lookupError && (
+            <p className="text-red-500 text-sm">{lookupError}</p>
+          )}
+
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4">
+            <p className="text-sm text-purple-800 dark:text-purple-200">
+              Or open in the Farcaster app for the full experience
+            </p>
           </div>
 
           <p className="text-xs text-gray-400">
