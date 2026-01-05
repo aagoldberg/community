@@ -192,7 +192,7 @@ async function fetchAllUserCasts(
 
   while (allCasts.length < limit) {
     const { casts: batch, nextCursor } = await client.fetchUserCasts(fid, {
-      limit: Math.min(150, limit - allCasts.length),
+      limit: Math.min(50, limit - allCasts.length), // Neynar max is 50
       cursor,
       includeReplies: true,
     });
@@ -228,7 +228,7 @@ export async function runIncrementalUpdate(fid: number): Promise<IngestResult> {
 
   while (!done && newCasts.length < MAX_CASTS) {
     const { casts: batch, nextCursor } = await client.fetchUserCasts(fid, {
-      limit: 150,
+      limit: 50, // Neynar max is 50
       cursor,
       includeReplies: true,
     });

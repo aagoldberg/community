@@ -52,8 +52,13 @@ export async function POST(req: NextRequest) {
       })
       .where(eq(users.fid, fid));
 
-    // If ingestion never completed, run it now
-    if (existingUser.ingestStatus !== "complete") {
+    // If ingestion never completed OR user has no casts, run it now
+    const needsIngestion =
+      existingUser.ingestStatus !== "complete" ||
+      !existingUser.totalCasts ||
+      existingUser.totalCasts === 0;
+
+    if (needsIngestion) {
       await db
         .update(users)
         .set({ ingestStatus: "in_progress" })

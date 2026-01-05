@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, users } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { invalidateDashboardCache } from "@/lib/cache";
-import { Client } from "@upstash/qstash";
-
-const qstash = new Client({ token: process.env.QSTASH_TOKEN! });
+import { runIncrementalUpdate } from "@/lib/neynar/ingest";
 
 // POST /api/refresh?fid=123 - Trigger data refresh
 export async function POST(req: NextRequest) {
@@ -38,12 +36,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Rate limit: don't allow refresh more than once per hour
+  // Rate limit: don't allow refresh more than once per 15 minutes
   if (userRecord.lastIngestAt) {
-    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    if (userRecord.lastIngestAt > hourAgo) {
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+    if (userRecord.lastIngestAt > fifteenMinsAgo) {
       const waitMinutes = Math.ceil(
-        (userRecord.lastIngestAt.getTime() + 60 * 60 * 1000 - Date.now()) /
+        (userRecord.lastIngestAt.getTime() + 15 * 60 * 1000 - Date.now()) /
           60000
       );
       return NextResponse.json(
@@ -51,7 +49,7 @@ export async function POST(req: NextRequest) {
           status: "rate_limited",
           message: `Please wait ${waitMinutes} minutes before refreshing again`,
           nextRefreshAt: new Date(
-            userRecord.lastIngestAt.getTime() + 60 * 60 * 1000
+            userRecord.lastIngestAt.getTime() + 15 * 60 * 1000
           ).toISOString(),
         },
         { status: 429 }
@@ -63,22 +61,23 @@ export async function POST(req: NextRequest) {
     // Invalidate cache
     await invalidateDashboardCache(fid);
 
-    // Queue incremental update job
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const result = await qstash.publishJSON({
-      url: `${appUrl}/api/jobs/ingest`,
-      body: { fid, incremental: true },
-    });
+    // Run incremental update directly
+    const result = await runIncrementalUpdate(fid);
 
     return NextResponse.json({
-      status: "queued",
-      jobId: result.messageId,
+      status: "complete",
+      castsIngested: result.castsIngested,
+      repliesIngested: result.repliesIngested,
+      classificationsCreated: result.classificationsCreated,
     });
   } catch (error) {
     console.error("Refresh error:", error);
     return NextResponse.json(
-      { error: "Failed to queue refresh" },
+      { error: "Failed to refresh data" },
       { status: 500 }
     );
   }
 }
+
+// Allow longer execution
+export const maxDuration = 300;
