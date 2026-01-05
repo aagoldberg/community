@@ -37,6 +37,7 @@ export async function runIngestionPipeline(fid: number): Promise<IngestResult> {
 
     // 2. Store casts
     let castsIngested = 0;
+    let castsSkipped = 0;
     for (const cast of userCasts) {
       const result = await db
         .insert(casts)
@@ -53,8 +54,13 @@ export async function runIngestionPipeline(fid: number): Promise<IngestResult> {
         .onConflictDoNothing()
         .returning();
 
-      if (result.length > 0) castsIngested++;
+      if (result.length > 0) {
+        castsIngested++;
+      } else {
+        castsSkipped++;
+      }
     }
+    console.log("[ingest] Casts ingested:", castsIngested, "skipped (already exist):", castsSkipped);
 
     // 3. Fetch replies to root casts
     const rootCasts = userCasts.filter((c) => !c.parentHash);
@@ -136,9 +142,12 @@ export async function runIngestionPipeline(fid: number): Promise<IngestResult> {
       .leftJoin(classifications, eq(casts.hash, classifications.castHash))
       .where(and(eq(casts.fid, fid), isNull(classifications.castHash)));
 
+    console.log("[ingest] Unclassified casts found:", unclassified.length);
+
     let classificationsCreated = 0;
     if (unclassified.length > 0) {
       const results = await classifyBatch(unclassified);
+      console.log("[ingest] Classification results:", results.size);
 
       for (const [hash, result] of results) {
         await db
