@@ -35,6 +35,7 @@ export async function computeDashboard(
     reciprocity,
     agencyStats,
     emotionStats,
+    hopeStats,
     topExamples,
   ] = await Promise.all([
     computeActivation(fid, rangeStart, prevRangeStart, prevRangeEnd),
@@ -43,6 +44,7 @@ export async function computeDashboard(
     computeReciprocity(fid, rangeStart),
     computeAgencyStats(fid, rangeStart),
     computeEmotionStats(fid, rangeStart),
+    computeHopeStats(fid, rangeStart),
     computeTopExamples(fid, rangeStart),
   ]);
 
@@ -54,6 +56,7 @@ export async function computeDashboard(
     agencyRate: agencyStats,
     rageDensity: emotionStats.rage,
     positiveRate: emotionStats.positive,
+    hopeIndex: hopeStats,
     topExamples,
   };
 }
@@ -294,6 +297,40 @@ async function computeEmotionStats(
     positive: {
       value: Math.round((positiveCount / total) * 100),
     },
+  };
+}
+
+// HOPE STATS: Hope Index based on positive/future-oriented content
+// NOTE: For now uses positivity as proxy. Future: add hope score to DB
+async function computeHopeStats(
+  fid: number,
+  rangeStart: Date
+): Promise<{ value: number; highPct: number }> {
+  // Use positive rate with future-oriented weighting as hope proxy
+  // A more sophisticated implementation would analyze text for future markers
+  const result = await db
+    .select({
+      total: sql<number>`count(*)`,
+      positiveCount: sql<number>`count(*) filter (where ${classifications.sentiment} = 'positive')`,
+      // Strong positivity as "high hope" proxy
+      highPositiveCount: sql<number>`count(*) filter (where ${classifications.sentiment} = 'positive' and ${classifications.hasAgency} = true)`,
+    })
+    .from(casts)
+    .innerJoin(classifications, eq(casts.hash, classifications.castHash))
+    .where(and(eq(casts.fid, fid), gte(casts.timestamp, rangeStart)));
+
+  const total = Number(result[0]?.total ?? 1);
+  const positiveCount = Number(result[0]?.positiveCount ?? 0);
+  const highPositiveCount = Number(result[0]?.highPositiveCount ?? 0);
+
+  // Hope index: weighted combination of positivity and action-oriented positivity
+  const positiveRate = positiveCount / total;
+  const actionPositiveRate = highPositiveCount / total;
+  const hopeValue = Math.round((0.7 * positiveRate + 0.3 * actionPositiveRate) * 100);
+
+  return {
+    value: hopeValue,
+    highPct: Math.round((highPositiveCount / Math.max(positiveCount, 1)) * 100),
   };
 }
 

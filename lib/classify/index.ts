@@ -1,29 +1,30 @@
-import { analyzeLexicon, hasActionSignal as checkActionSignal, maybeSarcastic } from "./lexicon";
-import { classifyBatchWithLLM, LLMClassification } from "./llm";
+/**
+ * Main classification module
+ * Exports the hybrid VADER + lexicon emotion scoring system
+ */
+
+import {
+  computeEmotion,
+  emotionToClassification,
+  MessageEmotion,
+  Classification,
+} from "./emotion";
 import {
   getCachedClassifications,
   cacheClassification,
-  ClassificationCache,
 } from "@/lib/cache";
 
+// Re-export types and functions
 export { hasActionSignal } from "./lexicon";
+export { computeEmotion, emotionToClassification } from "./emotion";
+export type { MessageEmotion, Classification } from "./emotion";
+export type { VaderScore } from "./vader";
+export type { LexiconHits, LexiconDeltas } from "./lexicon";
 
-export interface Classification {
-  sentiment: "positive" | "negative" | "neutral";
-  hasAnger: boolean;
-  angerConfidence: number;
-  hasAgency: boolean;
-}
-
-const LEXICON_CONFIDENCE_THRESHOLD = 0.6;
-const BATCH_SIZE = 20;
-
-function chunk<T>(arr: T[], size: number): T[][] {
-  return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
-    arr.slice(i * size, i * size + size)
-  );
-}
-
+/**
+ * Classify a batch of posts using the hybrid emotion system
+ * Returns backward-compatible Classification objects
+ */
 export async function classifyBatch(
   posts: { hash: string; text: string }[]
 ): Promise<Map<string, Classification>> {
@@ -53,75 +54,42 @@ export async function classifyBatch(
 
   if (uncached.length === 0) return results;
 
-  // 2. Run lexicon analysis on uncached
-  const needsLLM: { hash: string; text: string }[] = [];
-  const lexiconResults = new Map<string, Classification>();
-
+  // 2. Compute emotions for uncached posts
   for (const post of uncached) {
-    const lexicon = analyzeLexicon(post.text);
-    const isSarcastic = maybeSarcastic(post.text);
+    const emotion = computeEmotion(post.text);
+    const classification = emotionToClassification(emotion);
 
-    // If lexicon has high confidence and not sarcastic, use it
-    if (lexicon.angerConfidence === "high" && !isSarcastic) {
-      const result: Classification = {
-        sentiment: "negative",
-        hasAnger: true,
-        angerConfidence: lexicon.angerScore,
-        hasAgency: lexicon.hasAgency,
-      };
-      lexiconResults.set(post.hash, result);
-    } else if (lexicon.angerScore < 0.1 && !isSarcastic) {
-      // Clear non-anger: still need LLM for sentiment but can set anger
-      needsLLM.push(post);
-    } else {
-      // Uncertain: need LLM
-      needsLLM.push(post);
-    }
-  }
-
-  // Store lexicon results
-  for (const [hash, result] of Array.from(lexiconResults.entries())) {
-    results.set(hash, result);
-    await cacheClassification(hash, {
-      sentiment: result.sentiment,
-      hasAnger: result.hasAnger,
-      angerConfidence: result.angerConfidence,
-      hasAgency: result.hasAgency,
+    results.set(post.hash, classification);
+    await cacheClassification(post.hash, {
+      sentiment: classification.sentiment,
+      hasAnger: classification.hasAnger,
+      angerConfidence: classification.angerConfidence,
+      hasAgency: classification.hasAgency,
     });
-  }
-
-  // 3. Run LLM on posts that need it
-  if (needsLLM.length > 0) {
-    // Process in batches
-    for (const batch of chunk(needsLLM, BATCH_SIZE)) {
-      const llmResults = await classifyBatchWithLLM(batch);
-
-      for (const post of batch) {
-        const llmResult = llmResults.get(post.hash);
-        const lexicon = analyzeLexicon(post.text);
-
-        const result: Classification = {
-          sentiment: llmResult?.sentiment || "neutral",
-          hasAnger: llmResult?.hasAnger || false,
-          angerConfidence: llmResult?.angerConfidence || 0,
-          hasAgency: lexicon.hasAgency, // Always use lexicon for agency
-        };
-
-        results.set(post.hash, result);
-        await cacheClassification(post.hash, {
-          sentiment: result.sentiment,
-          hasAnger: result.hasAnger,
-          angerConfidence: result.angerConfidence,
-          hasAgency: result.hasAgency,
-        });
-      }
-    }
   }
 
   return results;
 }
 
-// Classify a single post (useful for testing)
+/**
+ * Compute full emotions for a batch of posts (not just classification)
+ * Returns the complete MessageEmotion with explainability
+ */
+export async function computeEmotionBatch(
+  posts: { hash: string; text: string }[]
+): Promise<Map<string, MessageEmotion>> {
+  const results = new Map<string, MessageEmotion>();
+
+  for (const post of posts) {
+    results.set(post.hash, computeEmotion(post.text));
+  }
+
+  return results;
+}
+
+/**
+ * Classify a single post (useful for testing)
+ */
 export async function classifyPost(
   hash: string,
   text: string
@@ -135,4 +103,11 @@ export async function classifyPost(
       hasAgency: false,
     }
   );
+}
+
+/**
+ * Get full emotion analysis for a single post
+ */
+export function analyzePost(text: string): MessageEmotion {
+  return computeEmotion(text);
 }

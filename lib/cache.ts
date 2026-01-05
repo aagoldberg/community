@@ -18,6 +18,7 @@ export interface DashboardData {
   agencyRate: { value: number; postsWithActionReplies: number };
   rageDensity: { value: number; count: number };
   positiveRate: { value: number };
+  hopeIndex: { value: number; highPct: number }; // New: hope metric from emotion analysis
   topExamples: {
     rage: ExamplePost[];
     agency: ExamplePost[];
