@@ -4,11 +4,13 @@ import { eq } from "drizzle-orm";
 import { getNeynarClient } from "@/lib/neynar/client";
 import { runIngestionPipeline } from "@/lib/neynar/ingest";
 
-// POST /api/lookup?fid=123 or /api/lookup?username=vitalik.eth
+// POST /api/lookup?fid=123 or /api/lookup?username=vitalik.eth&limit=100
 // Looks up a user by FID or username, ensures they exist in DB, triggers ingestion if needed
 export async function POST(req: NextRequest) {
   const fidParam = req.nextUrl.searchParams.get("fid");
   const usernameParam = req.nextUrl.searchParams.get("username");
+  const limitParam = req.nextUrl.searchParams.get("limit");
+  const limit = limitParam ? parseInt(limitParam, 10) : 100;
 
   let fid: number | null = null;
   let username: string | null = null;
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     // Run ingestion (this may take a while)
     try {
-      await runIngestionPipeline(fid);
+      await runIngestionPipeline(fid, { maxCasts: limit });
     } catch (error) {
       console.error("Ingestion error:", error);
       // Continue - user can refresh later
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
   ) {
     // User exists but needs ingestion
     try {
-      await runIngestionPipeline(fid);
+      await runIngestionPipeline(fid, { maxCasts: limit });
     } catch (error) {
       console.error("Ingestion error:", error);
     }

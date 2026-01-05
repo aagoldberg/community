@@ -9,9 +9,13 @@ import {
 } from "./client";
 import { classifyBatch, hasActionSignal } from "@/lib/classify";
 
-const MAX_CASTS = 500;
+const DEFAULT_MAX_CASTS = 500;
 const MAX_REPLIES_PER_ROOT = 100;
 const RATE_LIMIT_DELAY = 250; // ms between API calls
+
+export interface IngestOptions {
+  maxCasts?: number;
+}
 
 export interface IngestResult {
   castsIngested: number;
@@ -19,8 +23,12 @@ export interface IngestResult {
   classificationsCreated: number;
 }
 
-export async function runIngestionPipeline(fid: number): Promise<IngestResult> {
-  console.log("[ingest] Starting pipeline for FID:", fid);
+export async function runIngestionPipeline(
+  fid: number,
+  options: IngestOptions = {}
+): Promise<IngestResult> {
+  const { maxCasts = DEFAULT_MAX_CASTS } = options;
+  console.log("[ingest] Starting pipeline for FID:", fid, "maxCasts:", maxCasts);
   const client = getNeynarClient();
 
   // Mark as in-progress
@@ -32,7 +40,7 @@ export async function runIngestionPipeline(fid: number): Promise<IngestResult> {
   try {
     // 1. Fetch user's casts
     console.log("[ingest] Fetching casts for FID:", fid);
-    const userCasts = await fetchAllUserCasts(fid, MAX_CASTS);
+    const userCasts = await fetchAllUserCasts(fid, maxCasts);
     console.log("[ingest] Fetched casts:", userCasts.length);
 
     // 2. Store casts
@@ -238,7 +246,7 @@ export async function runIncrementalUpdate(fid: number): Promise<IngestResult> {
   let cursor: string | null = null;
   let done = false;
 
-  while (!done && newCasts.length < MAX_CASTS) {
+  while (!done && newCasts.length < DEFAULT_MAX_CASTS) {
     const { casts: batch, nextCursor } = await client.fetchUserCasts(fid, {
       limit: 50, // Neynar max is 50
       cursor,

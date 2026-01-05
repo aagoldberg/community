@@ -15,6 +15,7 @@ export default function Home() {
   const [lookupFid, setLookupFid] = useState<number | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [postLimit, setPostLimit] = useState<number>(100);
 
   useEffect(() => {
     const init = async () => {
@@ -43,11 +44,11 @@ export default function Home() {
       if (/^\d+$/.test(input)) {
         const fid = parseInt(input, 10);
         // Trigger ingestion for this FID
-        await fetch(`/api/lookup?fid=${fid}`, { method: "POST" });
+        await fetch(`/api/lookup?fid=${fid}&limit=${postLimit}`, { method: "POST" });
         setLookupFid(fid);
       } else {
         // It's a username - look up the FID
-        const res = await fetch(`/api/lookup?username=${encodeURIComponent(input)}`, { method: "POST" });
+        const res = await fetch(`/api/lookup?username=${encodeURIComponent(input)}&limit=${postLimit}`, { method: "POST" });
         const data = await res.json();
 
         if (!res.ok) {
@@ -112,13 +113,25 @@ export default function Home() {
               placeholder="Enter FID or username (e.g. 218775 or vitalik.eth)"
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
-            <button
-              type="submit"
-              disabled={lookupLoading || !lookupInput.trim()}
-              className="w-full px-4 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {lookupLoading ? "Loading..." : "View Analytics"}
-            </button>
+            <div className="flex gap-2">
+              <select
+                value={postLimit}
+                onChange={(e) => setPostLimit(Number(e.target.value))}
+                className="px-3 py-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value={50}>50 posts</option>
+                <option value={100}>100 posts</option>
+                <option value={250}>250 posts</option>
+                <option value={500}>500 posts</option>
+              </select>
+              <button
+                type="submit"
+                disabled={lookupLoading || !lookupInput.trim()}
+                className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {lookupLoading ? "Loading..." : "View Analytics"}
+              </button>
+            </div>
           </form>
 
           {lookupError && (
